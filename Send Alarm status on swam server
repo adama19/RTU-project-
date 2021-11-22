@@ -1,0 +1,172 @@
+import time 
+import serial
+from serial import Serial
+from paho.mqtt import client as mqtt
+import requests
+from requests.structures import CaseInsensitiveDict
+
+ser = serial.Serial(port='/dev/ttyUSB0',
+baudrate = 2400,
+parity = serial.PARITY_NONE,
+stopbits = serial.STOPBITS_ONE,
+bytesize = serial.EIGHTBITS,
+timeout = 1
+)
+
+#change the url according to sensor 
+url = "http://139.59.235.229/rpc/alarmlevel"
+
+
+print ("Conected to: " +ser.portstr)
+
+#broker address
+mqttBroker = "127.0.0.1"
+#Creating an instance 
+print("Creating new instance ")
+client = mqtt.Client("RTU data")
+#Connecting to the broker 
+print("Connecting to the broker")
+client.connect(mqttBroker)
+
+while True:
+    #Read the output from serial 
+    output= ser.readline()
+    #convert the byte to string 
+    result = output.decode('utf-8')
+    print (result)
+    #Split the result into segment
+    Array_value = result.split(",")
+    #split the first element to get the battery values and others
+    splitdata = Array_value[0].split('*')
+
+    if (len(splitdata)>2):
+        first_string = (splitdata[1])
+        voltage =(splitdata[2])
+
+        voltage = int (voltage) / 100
+
+    if (len(Array_value)>2):
+        waterLevel = Array_value[1]
+        last_string = Array_value[2]
+
+        waterLevel = int (waterLevel) / 100
+
+        headers = CaseInsensitiveDict()
+        headers["Content-Type"] = "application/json"
+        headers["Authorization"] = "Bearer 2|7Rs59BQxkFcZXORtaKW4iDit3OdJYfMeagcBEpHE"
+
+        #collect values from the first string 
+        groupId = first_string[0:1]
+        sending_station_Id = first_string[1:2]
+        receiving_sation_Id = first_string[2:3]
+        status = first_string[3:4]
+        
+        print ("\n")
+
+        #Collect values from the last string
+        di_val = last_string[0:1]
+        alarm_status = last_string[1:2]
+        do_status = last_string[2:3]
+
+        #publishing message to the broker
+
+        print("Publishing message to topic ", "iot/RTUsensor/group_Id")
+        client.publish("iot/RTUsensor/group_Id", groupId )
+        print ("Group Id: ")
+        print (groupId)
+
+        print ("\n")
+
+        print("Publishing message to topic ", "iot/RTUsensor/sending_station_Id")
+        client.publish("iot/RTUsensor/sending_station_id", sending_station_Id )
+        print ("Sending Station Id: ")
+        print (sending_station_Id)
+
+        print ("\n")
+
+        print("Publishing message to topic ", "iot/RTUsensor/receiving_station_Id")
+        client.publish("iot/RTUsensor/receiving_station_Id", receiving_sation_Id )
+        print ("Receiving Station Id: ")
+        print (receiving_sation_Id)
+
+        if (status == "1"):
+            print ("\n")
+
+            print("Publishing message to topic ", "iot/RTUsensor/status_allowed")
+            client.publish("iot/RTUsensor/status_allowed", status)
+            print ("Status: ")
+            print (status)
+        elif (status == "2"):
+            print ("\n")
+
+            print("Publishing message to topic ", "iot/RTUsensor/alarm_release")
+            client.publish("iot/RTUsensor/alarm_release", status)
+            print ("Status: ")
+            print (status)
+        elif (status == "3"):
+            print ("\n")
+
+            print("Publishing message to topic ", "iot/RTUsensor/warning_alarm")
+            client.publish("iot/RTUsensor/warning_alarm", status)
+            print ("Status: ")
+            print (status)
+        elif (status == "4"):
+            print ("\n")
+
+            print("Publishing message to topic ", "iot/RTUsensor/danger_alarm")
+            client.publish("iot/RTUsensor/danger_alarm", status)
+            print ("Status: ")
+            print (status)
+
+        print("\n")
+        
+        print("Publishing message to topic ", "iot/RTUsensor/battery_Level")
+        client.publish("iot/RTUsensor/battery_Level", voltage )  
+        print("Battery level:")
+        print (voltage)
+
+        print ("\n")
+
+        print("Publishing message to topic ", "iot/RTUsensor/water_Level")
+        client.publish("iot/RTUsensor/waterLevel", waterLevel )
+        print ("Water Level: ")
+        print (waterLevel)
+
+        print ("\n")
+
+        print("Publishing message to topic ", "iot/RTUsensor/Di_val")
+        client.publish("iot/RTUsensor/Di_val", di_val)
+        print ("Di val: ")
+        print (di_val)
+
+        print ("\n")
+
+        print("Publishing message to topic ", "iot/RTUsensor/alarm_status")
+        client.publish("iot/RTUsensor/alarm_status", alarm_status )
+        print ("Alarm status: ")
+        print (alarm_status)
+
+        print ("\n")
+
+        print("Publishing message to topic ", "iot/RTUsensor/do_status")
+        client.publish("iot/RTUsensor/do_status", do_status )
+        print ("Do status: ")
+        print (do_status)
+        print ("\n")
+
+        time.sleep(10)
+
+        data = {
+                "jsonrpc": "2.0",
+                "id": "alarmlevel-2jmj7l5rSw0yVb/vlWAYkK/YBwk=",
+                "method": "AlarmLevelProcedure@handle",
+                "params": 
+                        {
+                            "location_id": "1",
+                            "timestamp": " datetime.datetime.now()",
+                            "m2": status
+                        } 
+        }
+
+        resp = requests.post(url, headers=headers, data=data)
+        print(resp.status_code)

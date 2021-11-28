@@ -1,0 +1,70 @@
+import time 
+import serial
+from serial import Serial
+from paho.mqtt import client as mqtt
+import requests
+from requests.structures import CaseInsensitiveDict
+
+ser = serial.Serial(port='/dev/ttyUSB0',
+baudrate = 2400,
+parity = serial.PARITY_NONE,
+stopbits = serial.STOPBITS_ONE,
+bytesize = serial.EIGHTBITS,
+timeout = 1
+)
+
+#change the url according to sensor 
+url = "http://swam.coexcys.my/rpc/powervoltage"
+headers = CaseInsensitiveDict()
+headers["Content-Type"] = "application/json"
+headers["Authorization"] = "Bearer 4|8MYH0rc6T5zIXloc5KEAo7cJVpFQNcUHv9SBy55E"
+
+
+print ("Conected to: " +ser.portstr)
+
+#broker address
+mqttBroker = "127.0.0.1"
+#Creating an instance 
+print("Creating new instance ")
+client = mqtt.Client("RTU data")
+#Connecting to the broker 
+print("Connecting to the broker")
+client.connect(mqttBroker)
+
+while True:
+    #Read the output from serial 
+    output= ser.readline()
+    #convert the byte to string 
+    result = output.decode('utf-8')
+    print (result)
+    #Split the result into segment
+    Array_value = result.split(",")
+    #split the first element to get the battery values and others
+    splitdata = Array_value[0].split('*')
+
+    if (len(splitdata)>2):
+        first_string = (splitdata[1])
+        voltage =(splitdata[2])
+
+        voltage = int (voltage) / 100
+
+        print("Publishing message to topic ", "iot/RTUsensor/power_voltage")
+        client.publish("iot/RTUsensor/power_voltage", voltage )
+        print ("Power voltage: ")
+        print (voltage)
+
+        data = {
+                "jsonrpc": "2.0",
+                "id": "powervoltage-2jmj7l5rSw0yVb/vlWAYkK/YBwk=",
+                "method": "PowerVoltageProcedure@handle",
+                "params": {
+                            "location_id": "1",
+                            "timestamp": "2021-11-28 17:51:00",
+                            "volts": voltage
+                        } 
+        }
+
+        resp = requests.post(url, headers=headers, data=data)
+        #print(resp.status_code)
+
+    time.sleep(10)

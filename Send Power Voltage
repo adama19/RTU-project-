@@ -1,5 +1,7 @@
 import time 
 import serial
+import json
+import datetime
 from serial import Serial
 from paho.mqtt import client as mqtt
 import requests
@@ -14,7 +16,7 @@ timeout = 1
 )
 
 #change the url according to sensor 
-url = "http://swam.coexcys.my/rpc/powervoltage"
+url = "https://swam.coexcys.my/rpc/powervoltage"
 headers = CaseInsensitiveDict()
 headers["Content-Type"] = "application/json"
 headers["Authorization"] = "Bearer 4|8MYH0rc6T5zIXloc5KEAo7cJVpFQNcUHv9SBy55E"
@@ -30,6 +32,9 @@ client = mqtt.Client("RTU data")
 #Connecting to the broker 
 print("Connecting to the broker")
 client.connect(mqttBroker)
+
+#Get current date and time 
+date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 while True:
     #Read the output from serial 
@@ -59,12 +64,12 @@ while True:
                 "method": "PowerVoltageProcedure@handle",
                 "params": {
                             "location_id": "1",
-                            "timestamp": "2021-11-28 17:51:00",
+                            "timestamp": date_time,
                             "volts": voltage
                         } 
         }
 
-        resp = requests.post(url, headers=headers, data=data)
+        resp = requests.post(url, headers=headers, data=json.dumps(data))
         #print(resp.status_code)
 
     time.sleep(10)

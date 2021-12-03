@@ -15,7 +15,7 @@ timeout = 1
 )
 
 #change the url according to sensor 
-url = "http://swam.coexcys.my/rpc/waterlevel"
+url = "https://swam.coexcys.my/rpc/waterlevel"
 headers = CaseInsensitiveDict()
 headers["Content-Type"] = "application/json"
 headers["Authorization"] = "Bearer 2|7Rs59BQxkFcZXORtaKW4iDit3OdJYfMeagcBEpHE"
@@ -31,6 +31,9 @@ client = mqtt.Client("RTU data")
 #Connecting to the broker 
 print("Connecting to the broker")
 client.connect(mqttBroker)
+
+#Get current date and time 
+date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 while True:
     #Read the output from serial 
@@ -60,12 +63,12 @@ while True:
                 "method": "WaterLevelProcedure@handle",
                 "params": {
                             "location_id": "1",
-                            "timestamp": "2021-11-28 18:12:00",
+                            "timestamp": date_time,
                             "m2": waterLevel
                         } 
         }
 
-        resp = requests.post(url, headers=headers, data=data)
+        resp = requests.post(url, headers=headers, data=json.dumps(data))
         #print(resp.status_code)
 
     time.sleep(10)

@@ -1,0 +1,127 @@
+import time 
+import serial
+import json
+import datetime 
+from serial import Serial
+from paho.mqtt import client as mqtt
+import requests
+from requests.structures import CaseInsensitiveDict
+
+ser = serial.Serial(port='/dev/ttyUSB0',
+baudrate = 2400,
+parity = serial.PARITY_NONE,
+stopbits = serial.STOPBITS_ONE,
+bytesize = serial.EIGHTBITS,
+timeout = 1
+)
+
+#change the url according to sensor 
+url = "https://swam.coexcys.my/rpc/alarmlevel"
+headers = CaseInsensitiveDict()
+headers["Content-Type"] = "application/json"
+headers["Authorization"] = "Bearer 2|7Rs59BQxkFcZXORtaKW4iDit3OdJYfMeagcBEpHE"
+
+print ("Conected to: " +ser.portstr)
+
+#broker address
+mqttBroker = "127.0.0.1"
+#Creating an instance 
+print("Creating new instance ")
+client = mqtt.Client("RTU data")
+#Connecting to the broker 
+print("Connecting to the broker")
+client.connect(mqttBroker)
+
+while True:
+    #Read the output from serial 
+    output= ser.readline()
+    #convert the byte to string 
+    result = output.decode('utf-8')
+    print (result)
+    #Split the result into segment
+    Array_value = result.split(",")
+    #split the first element to get the battery values and others
+    splitdata = Array_value[0].split('*')
+
+    if (len(splitdata)>2):
+        first_string = (splitdata[1])
+
+        #collect the alarm status from the first string
+        status = first_string[3:4]
+
+        print ("\n")
+
+        if (status == "1"):
+            print("Publishing message to topic ", "iot/RTUsensor/status_allowed")
+            client.publish("iot/RTUsensor/status_allowed", status)
+            print ("Status: ")
+            print (status)
+
+            #current date and time 
+            date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            data = {
+                "jsonrpc": "2.0",
+                "id": "alarmlevel-2jmj7l5rSw0yVb/vlWAYkK/YBwk=",
+                "method": "AlarmLevelProcedure@handle",
+                "params": {
+                            "location_id": "1",
+                            "timestamp": date_time,
+                            "percentage": status
+                        }  
+        }
+        elif (status == "2"):
+            print("Publishing message to topic ", "iot/RTUsensor/alarm_release")
+            client.publish("iot/RTUsensor/alarm_release", status)
+            print ("Status: ")
+            print (status)
+
+            data = {
+                "jsonrpc": "2.0",
+                "id": "alarmlevel-2jmj7l5rSw0yVb/vlWAYkK/YBwk=",
+                "method": "AlarmLevelProcedure@handle",
+                "params": {
+                            "location_id": "1",
+                            "timestamp": date_time,
+                            "percentage": status
+                        }  
+            }
+        elif (status == "3"):
+            print("Publishing message to topic ", "iot/RTUsensor/warning_alarm")
+            client.publish("iot/RTUsensor/warning_alarm", status)
+            print ("Status: ")
+            print (status)
+
+            data = {
+                "jsonrpc": "2.0",
+                "id": "alarmlevel-2jmj7l5rSw0yVb/vlWAYkK/YBwk=",
+                "method": "AlarmLevelProcedure@handle",
+                "params": {
+                            "location_id": "1",
+                            "timestamp": date_time,
+                            "percentage": status
+                        }  
+            }
+        elif (status == "4"):
+            print("Publishing message to topic ", "iot/RTUsensor/danger_alarm")
+            client.publish("iot/RTUsensor/danger_alarm", status)
+            print ("Status: ")
+            print (status)
+
+            data = {
+                "jsonrpc": "2.0",
+                "id": "alarmlevel-2jmj7l5rSw0yVb/vlWAYkK/YBwk=",
+                "method": "AlarmLevelProcedure@handle",
+                "params": {
+                            "location_id": "1",
+                            "timestamp": date_time,
+                            "percentage": status
+                        }  
+            }
+
+        resp = requests.post(url, headers=headers, data=json.dumps(data))
+        #print(resp.status_code)
+        #print(date_time)
+        print("\n")
+
+time.sleep(5)
